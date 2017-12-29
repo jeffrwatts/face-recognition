@@ -11,6 +11,7 @@ import android.graphics.Bitmap;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.Point;
+import android.graphics.PointF;
 import android.graphics.RectF;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
@@ -31,6 +32,7 @@ import android.support.v13.app.FragmentCompat;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.util.Size;
+import android.util.SparseArray;
 import android.view.LayoutInflater;
 import android.view.Surface;
 import android.view.TextureView;
@@ -40,6 +42,10 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 import android.widget.TextView;
+
+import com.google.android.gms.vision.Frame;
+import com.google.android.gms.vision.face.Face;
+import com.google.android.gms.vision.face.FaceDetector;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -83,8 +89,11 @@ public class CameraFragment extends Fragment implements FragmentCompat.OnRequest
     private CaptureRequest.Builder previewRequestBuilder;
     private CaptureRequest previewRequest;
 
+    private FaceDetector faceDetector;
+
     public static CameraFragment newInstance() {
-        return new CameraFragment();
+        CameraFragment fragment = new CameraFragment();
+        return fragment;
     }
 
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -100,6 +109,10 @@ public class CameraFragment extends Fragment implements FragmentCompat.OnRequest
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
         try {
+            faceDetector = new FaceDetector.Builder(getActivity())
+                    .setTrackingEnabled(false)
+                    .setLandmarkType(FaceDetector.ALL_LANDMARKS)
+                    .build();
             classifier = new ImageClassifier(getActivity());
         } catch (IOException e) {
             Log.e(TAG, "Failed to initialize an image classifier.");
@@ -132,6 +145,7 @@ public class CameraFragment extends Fragment implements FragmentCompat.OnRequest
 
     @Override
     public void onDestroy() {
+        faceDetector.release();
         classifier.close();
         super.onDestroy();
     }
@@ -191,15 +205,59 @@ public class CameraFragment extends Fragment implements FragmentCompat.OnRequest
         }
     }
 
+    private static long countDown = 10;
+
     private void classifyFrame() {
         if (classifier == null || getActivity() == null || cameraDevice == null) {
             showMessage("Uninitialized Classifier or invalid context.");
             return;
         }
-        Bitmap bitmap = textureView.getBitmap(ImageClassifier.IMAGE_WIDTH, ImageClassifier.IMAGE_HEIGHT);
-        String textToShow = classifier.classifyFrame(bitmap);;
+
+        if (!faceDetector.isOperational()) {
+            showMessage("Face Detector Not Operational");
+        }
+
+        String textToShow = "";
+        Bitmap bitmap = textureView.getBitmap();
+
+        Frame frame = new Frame.Builder().setBitmap(bitmap).build();
+        SparseArray<Face> faces = faceDetector.detect(frame);
+
+        int facesFound = faces.size();
+        textToShow = "Faces = " + facesFound;
+        if (facesFound != 0) {
+            Face face = faces.valueAt(0);
+            int x = (int) face.getPosition().x;
+            int y = (int) face.getPosition().y;
+            int width = (int) face.getWidth();
+            int height = (int) face.getHeight();
+
+            Bitmap croppedBitmap = Bitmap.createBitmap(bitmap, x, y, width, height);
+            Bitmap scaledBitmap = Bitmap.createScaledBitmap(croppedBitmap, ImageClassifier.IMAGE_WIDTH, ImageClassifier.IMAGE_HEIGHT, false);
+
+            textToShow = classifier.classifyFrame(scaledBitmap);
+        }
+
         bitmap.recycle();
         showMessage(textToShow);
+    }
+
+    private void SaveImage(Bitmap finalBitmap) {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyMMddHHmmssSSS");
+        String filename = dateFormat.format(Calendar.getInstance().getTime())+".jpg";
+        File file = new File(getActivity().getExternalFilesDir(null), filename);
+
+        if (file.exists ())
+            file.delete ();
+        try {
+            FileOutputStream out = new FileOutputStream(file);
+            finalBitmap.compress(Bitmap.CompressFormat.JPEG, 100, out);
+            out.flush();
+            out.close();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void showMessage(final String text) {
@@ -274,7 +332,7 @@ public class CameraFragment extends Fragment implements FragmentCompat.OnRequest
 
                 // We don't use a front facing camera in this sample.
                 Integer facing = characteristics.get(CameraCharacteristics.LENS_FACING);
-                if (facing != null && facing == CameraCharacteristics.LENS_FACING_FRONT) {
+                if (facing != null && facing == CameraCharacteristics.LENS_FACING_BACK) {
                     continue;
                 }
 
