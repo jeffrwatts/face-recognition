@@ -38,9 +38,6 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.Spinner;
 import android.widget.TextView;
 
 import com.google.android.gms.vision.Frame;
@@ -71,7 +68,7 @@ public class CameraFragment extends Fragment implements FragmentCompat.OnRequest
 
     private AutoFitTextureView textureView;
     private TextView textView;
-    private ImageClassifier classifier;
+    private FaceRecognizer faceRecognizer;
     private ImageReader imageReader;
 
     private static final String HANDLE_THREAD_NAME = "CameraBackground";
@@ -113,7 +110,7 @@ public class CameraFragment extends Fragment implements FragmentCompat.OnRequest
                     .setTrackingEnabled(false)
                     .setLandmarkType(FaceDetector.ALL_LANDMARKS)
                     .build();
-            classifier = new ImageClassifier(getActivity());
+            faceRecognizer = new FaceRecognizer(getActivity());
         } catch (IOException e) {
             Log.e(TAG, "Failed to initialize an image classifier.");
         }
@@ -146,7 +143,7 @@ public class CameraFragment extends Fragment implements FragmentCompat.OnRequest
     @Override
     public void onDestroy() {
         faceDetector.release();
-        classifier.close();
+        faceRecognizer.close();
         super.onDestroy();
     }
 
@@ -208,7 +205,7 @@ public class CameraFragment extends Fragment implements FragmentCompat.OnRequest
     private static long countDown = 10;
 
     private void classifyFrame() {
-        if (classifier == null || getActivity() == null || cameraDevice == null) {
+        if (faceRecognizer == null || getActivity() == null || cameraDevice == null) {
             showMessage("Uninitialized Classifier or invalid context.");
             return;
         }
@@ -218,6 +215,8 @@ public class CameraFragment extends Fragment implements FragmentCompat.OnRequest
         }
 
         String textToShow = "";
+
+        // First determine if there is a face in the bitmap.
         Bitmap bitmap = textureView.getBitmap();
 
         Frame frame = new Frame.Builder().setBitmap(bitmap).build();
@@ -226,16 +225,36 @@ public class CameraFragment extends Fragment implements FragmentCompat.OnRequest
         int facesFound = faces.size();
         textToShow = "Faces = " + facesFound;
         if (facesFound != 0) {
+            // Found a face.
+            int maxWidth = bitmap.getWidth();
+            int maxHeight = bitmap.getHeight();
             Face face = faces.valueAt(0);
-            int x = (int) face.getPosition().x;
-            int y = (int) face.getPosition().y;
-            int width = (int) face.getWidth();
-            int height = (int) face.getHeight();
 
-            Bitmap croppedBitmap = Bitmap.createBitmap(bitmap, x, y, width, height);
-            Bitmap scaledBitmap = Bitmap.createScaledBitmap(croppedBitmap, ImageClassifier.IMAGE_WIDTH, ImageClassifier.IMAGE_HEIGHT, false);
+            // Draws a circle at the position of the detected face, with the face's track id below.
+            float x = face.getPosition().x;
+            float y = face.getPosition().y;
+            float width = face.getWidth();
+            float height = face.getHeight();
 
-            textToShow = classifier.classifyFrame(scaledBitmap);
+            if (height > width) {
+                width = height;
+            } else {
+                height = width;
+            }
+
+            float adj = width * 0.1f;
+
+            x-=adj;
+            y+=adj;
+
+            if ((x >= 0) && (y>=0) && (x+width < maxWidth) && (y+height < maxHeight)) {
+                // Crop face out of bitmap and scale to needed input size.
+                Bitmap croppedBitmap = Bitmap.createBitmap(bitmap, (int)x, (int)y, (int)width, (int)height);
+                Bitmap scaledBitmap = Bitmap.createScaledBitmap(croppedBitmap, FaceRecognizer.IMAGE_WIDTH, FaceRecognizer.IMAGE_HEIGHT, false);
+                textToShow = faceRecognizer.recognizeFace(scaledBitmap);
+            } else {
+                textToShow = "Move face to center.";
+            }
         }
 
         bitmap.recycle();
@@ -625,4 +644,5 @@ public class CameraFragment extends Fragment implements FragmentCompat.OnRequest
             return Long.signum((long) lhs.getWidth() * lhs.getHeight() - (long) rhs.getWidth() * rhs.getHeight());
         }
     }
+
 }
