@@ -74,7 +74,7 @@ class FaceRecognizer {
 
         // Load data
         LoadData(assetManager);
-        RunTest(assetManager);
+        //RunTest(assetManager);
     }
 
     public Embedding generateEmbedding(Bitmap bitmap) {
@@ -159,12 +159,12 @@ class FaceRecognizer {
 
     private void RunTest (AssetManager assetManager) {
         Log.i(TAG, "Jeff");
-        Log.i(TAG, recognizeFace(loadBitmapFromAsset(assetManager, "jeff2.jpg")));
+        Log.i(TAG, recognizeFace(loadBitmapFromAsset(assetManager, "jeff1.jpg")));
         Log.i(TAG, "Doug");
-        Log.i(TAG, recognizeFace(loadBitmapFromAsset(assetManager, "doug2.jpg")));
+        Log.i(TAG, recognizeFace(loadBitmapFromAsset(assetManager, "doug1.jpg")));
         Log.i(TAG, "Pete");
-        Log.i(TAG, recognizeFace(loadBitmapFromAsset(assetManager, "pete2.jpg")));
+        Log.i(TAG, recognizeFace(loadBitmapFromAsset(assetManager, "pete1.jpg")));
         Log.i(TAG, "Zahra");
-        Log.i(TAG, recognizeFace(loadBitmapFromAsset(assetManager, "zahra2.jpg")));
+        Log.i(TAG, recognizeFace(loadBitmapFromAsset(assetManager, "zahra1.jpg")));
     }
 }

@@ -43,6 +43,7 @@ import android.widget.TextView;
 import com.google.android.gms.vision.Frame;
 import com.google.android.gms.vision.face.Face;
 import com.google.android.gms.vision.face.FaceDetector;
+import com.google.android.gms.vision.face.Landmark;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -87,6 +88,7 @@ public class CameraFragment extends Fragment implements FragmentCompat.OnRequest
     private CaptureRequest previewRequest;
 
     private FaceDetector faceDetector;
+    private FaceAligner faceAligner;
 
     public static CameraFragment newInstance() {
         CameraFragment fragment = new CameraFragment();
@@ -106,11 +108,14 @@ public class CameraFragment extends Fragment implements FragmentCompat.OnRequest
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
         try {
+
+            faceRecognizer = new FaceRecognizer(getActivity());
+            faceAligner = new FaceAligner(getActivity());
             faceDetector = new FaceDetector.Builder(getActivity())
                     .setTrackingEnabled(false)
                     .setLandmarkType(FaceDetector.ALL_LANDMARKS)
                     .build();
-            faceRecognizer = new FaceRecognizer(getActivity());
+
         } catch (IOException e) {
             Log.e(TAG, "Failed to initialize an image classifier.");
         }
@@ -218,43 +223,20 @@ public class CameraFragment extends Fragment implements FragmentCompat.OnRequest
 
         // First determine if there is a face in the bitmap.
         Bitmap bitmap = textureView.getBitmap();
-
         Frame frame = new Frame.Builder().setBitmap(bitmap).build();
         SparseArray<Face> faces = faceDetector.detect(frame);
 
         int facesFound = faces.size();
         textToShow = "Faces = " + facesFound;
         if (facesFound != 0) {
-            // Found a face.
-            int maxWidth = bitmap.getWidth();
-            int maxHeight = bitmap.getHeight();
-            Face face = faces.valueAt(0);
+           Face face = faces.valueAt(0);
+           Bitmap alignedFace = faceAligner.alignFace(bitmap, face.getLandmarks());
 
-            // Draws a circle at the position of the detected face, with the face's track id below.
-            float x = face.getPosition().x;
-            float y = face.getPosition().y;
-            float width = face.getWidth();
-            float height = face.getHeight();
-
-            if (height > width) {
-                width = height;
-            } else {
-                height = width;
-            }
-
-            float adj = width * 0.1f;
-
-            x-=adj;
-            y+=adj;
-
-            if ((x >= 0) && (y>=0) && (x+width < maxWidth) && (y+height < maxHeight)) {
-                // Crop face out of bitmap and scale to needed input size.
-                Bitmap croppedBitmap = Bitmap.createBitmap(bitmap, (int)x, (int)y, (int)width, (int)height);
-                Bitmap scaledBitmap = Bitmap.createScaledBitmap(croppedBitmap, FaceRecognizer.IMAGE_WIDTH, FaceRecognizer.IMAGE_HEIGHT, false);
-                textToShow = faceRecognizer.recognizeFace(scaledBitmap);
-            } else {
-                textToShow = "Move face to center.";
-            }
+           if (null != alignedFace) {
+               textToShow = faceRecognizer.recognizeFace(alignedFace);
+           } else {
+               textToShow = "Missing Landmarks";
+           }
         }
 
         bitmap.recycle();
