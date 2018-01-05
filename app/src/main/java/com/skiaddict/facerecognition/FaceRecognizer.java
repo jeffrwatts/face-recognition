@@ -51,7 +51,7 @@ class FaceRecognizer {
     private float[] embedding;
     private float[] floatValues;
 
-    private ArrayList<User> userDb;
+    private ArrayList<User> userDb = new ArrayList<>();
 
     private int embeddingLength;
     private TensorFlowInferenceInterface inferenceInterface;
@@ -71,10 +71,6 @@ class FaceRecognizer {
         intValues = new int[IMAGE_HEIGHT * IMAGE_WIDTH];
         floatValues = new float[IMAGE_HEIGHT * IMAGE_WIDTH * IMAGE_DEPTH];
         embedding = new float[embeddingLength];
-
-        // Load data
-        LoadData(assetManager);
-        //RunTest(assetManager);
     }
 
     public Embedding generateEmbedding(Bitmap bitmap) {
@@ -137,34 +133,7 @@ class FaceRecognizer {
         inferenceInterface.close();
     }
 
-    private void LoadData (AssetManager assetManager) {
-        userDb = new ArrayList<>(0);
-        userDb.add(new User("Jeff", generateEmbedding(loadBitmapFromAsset(assetManager, "jeff1.jpg"))));
-        userDb.add(new User("Pete", generateEmbedding(loadBitmapFromAsset(assetManager, "pete1.jpg"))));
-        userDb.add(new User("Doug", generateEmbedding(loadBitmapFromAsset(assetManager, "doug1.jpg"))));
-        userDb.add(new User("Zahra", generateEmbedding(loadBitmapFromAsset(assetManager, "zahra1.jpg"))));
-    }
-
-
-    private static Bitmap loadBitmapFromAsset(AssetManager assetManager, String filePath) {
-        Bitmap bitmap = null;
-        try {
-            InputStream inputStream = assetManager.open(filePath);
-            bitmap = BitmapFactory.decodeStream(inputStream);
-        } catch (IOException e) {
-        }
-
-        return bitmap;
-    }
-
-    private void RunTest (AssetManager assetManager) {
-        Log.i(TAG, "Jeff");
-        Log.i(TAG, recognizeFace(loadBitmapFromAsset(assetManager, "jeff1.jpg")));
-        Log.i(TAG, "Doug");
-        Log.i(TAG, recognizeFace(loadBitmapFromAsset(assetManager, "doug1.jpg")));
-        Log.i(TAG, "Pete");
-        Log.i(TAG, recognizeFace(loadBitmapFromAsset(assetManager, "pete1.jpg")));
-        Log.i(TAG, "Zahra");
-        Log.i(TAG, recognizeFace(loadBitmapFromAsset(assetManager, "zahra1.jpg")));
+    public void AddUser(User user) {
+        userDb.add(user);
     }
 }

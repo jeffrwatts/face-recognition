@@ -11,10 +11,6 @@ import android.graphics.Point;
 import android.graphics.PointF;
 import android.util.Log;
 
-import com.google.android.gms.vision.face.Face;
-import com.google.android.gms.vision.face.Landmark;
-
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -39,44 +35,16 @@ public class FaceAligner {
         this.activity = activity;
     }
 
-    public void Test (FaceRecognizer faceRecognizer) {
 
-        AssetManager assetManager = activity.getAssets();
-
-        Bitmap bitmap = loadBitmapFromAsset(assetManager, "DSC_3505.jpg");
-
-        // Face landmarks.
-        PointF actualLandmark36 = new PointF(2064.0f, 555.0f);
-        PointF actualLandmark45 = new PointF(2252.0f, 572.0f);
-        PointF actualLandmark33 = new PointF(2163.0f, 671.0f);
-
-        List<Landmark> landmarks = new ArrayList<>();
-        landmarks.add(new Landmark(actualLandmark36, Landmark.LEFT_EYE));
-        landmarks.add(new Landmark(actualLandmark45, Landmark.RIGHT_EYE));
-        landmarks.add(new Landmark(actualLandmark33, Landmark.NOSE_BASE));
-
-        Bitmap aligned = alignFace(bitmap, landmarks);
-        String result = faceRecognizer.recognizeFace(aligned);
-        Log.i("FaceAlign", result);
-    }
-
-    public Bitmap alignFace (Bitmap bitmapSource, List<Landmark> landmarks) {
-        // OUTER_EYES_AND_NOSE = [36, 45, 33]
-        PointF landmarkLeftEye = null;
-        PointF landmarkRightEye = null;
-        PointF landmarkNoseBase = null;
-
-        for (Landmark landmarkIx : landmarks) {
-            if (Landmark.LEFT_EYE == landmarkIx.getType()) {
-                landmarkLeftEye = landmarkIx.getPosition();
-            }
-            if (Landmark.RIGHT_EYE == landmarkIx.getType()) {
-                landmarkRightEye = landmarkIx.getPosition();
-            }
-            if (Landmark.NOSE_BASE == landmarkIx.getType()) {
-                landmarkNoseBase = landmarkIx.getPosition();
-            }
+    public Bitmap alignFace (Bitmap bitmapSource, List<Point> landmarks) {
+        if (landmarks.size() < 68) {
+            return null;
         }
+
+        // OUTER_EYES_AND_NOSE = [36, 45, 33]
+        Point landmarkLeftEye = landmarks.get(36);
+        Point landmarkRightEye = landmarks.get(45);
+        Point landmarkNoseBase = landmarks.get(33);
 
         if ((null == landmarkLeftEye) || (null == landmarkRightEye) || (null == landmarkNoseBase)) {
             return null;
