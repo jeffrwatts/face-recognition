@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Fragment;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
@@ -39,6 +40,7 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.TextView;
 
 import com.tzutalin.dlib.FaceDet;
@@ -69,7 +71,7 @@ public class CameraFragment extends Fragment implements FragmentCompat.OnRequest
 
     private AutoFitTextureView textureView;
     private TextView textView;
-    private FaceRecognizer faceRecognizer;
+    private Button addUserButton;
     private ImageReader imageReader;
 
     private static final String HANDLE_THREAD_NAME = "CameraBackground";
@@ -87,9 +89,12 @@ public class CameraFragment extends Fragment implements FragmentCompat.OnRequest
     private CaptureRequest.Builder previewRequestBuilder;
     private CaptureRequest previewRequest;
 
+    private FaceDet faceDetector;
     private FaceAligner faceAligner;
+    private FaceRecognizer faceRecognizer;
 
-    private FaceDet faceDet;
+
+    private UserDb userDb = null;
 
     public static CameraFragment newInstance() {
         CameraFragment fragment = new CameraFragment();
@@ -103,17 +108,22 @@ public class CameraFragment extends Fragment implements FragmentCompat.OnRequest
     public void onViewCreated(final View view, Bundle savedInstanceState) {
         textureView = (AutoFitTextureView) view.findViewById(R.id.texture);
         textView = (TextView) view.findViewById(R.id.text);
+        addUserButton = (Button) view.findViewById(R.id.addUser);
+        addUserButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                getActivity().startActivity(new Intent(getActivity(), AddUserActivity.class));
+            }
+        });
     }
 
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
         try {
-
-            faceRecognizer = new FaceRecognizer(getActivity());
+            faceDetector = new FaceDet(getFaceShapeModelPath());
             faceAligner = new FaceAligner(getActivity());
-            faceDet = new FaceDet(getFaceShapeModelPath());
-            loadUsers();
+            faceRecognizer = new FaceRecognizer(getActivity());
         } catch (IOException e) {
             Log.e(TAG, "Failed to initialize an image classifier.");
         }
@@ -124,40 +134,6 @@ public class CameraFragment extends Fragment implements FragmentCompat.OnRequest
         File externalFilesDir = getActivity().getExternalFilesDir(null);
         String targetPath = externalFilesDir.getAbsolutePath() + File.separator + "shape_predictor_68_face_landmarks.dat";
         return targetPath;
-    }
-
-    private Bitmap loadBitmapFromAsset(String filePath) {
-        Bitmap bitmap = null;
-        try {
-            InputStream inputStream = getActivity().getAssets().open(filePath);
-            bitmap = BitmapFactory.decodeStream(inputStream);
-        } catch (IOException e) {
-        }
-
-        return bitmap;
-    }
-
-    private Bitmap loadAlignedBitmap(String filePath) {
-        Bitmap bitmap = loadBitmapFromAsset(filePath);
-        Bitmap alignedFace = null;
-        List<VisionDetRet> faces = faceDet.detect(bitmap);
-
-        int facesFound = faces.size();
-
-        if (facesFound == 1) {
-            VisionDetRet face = faces.get(0);
-            ArrayList<Point> landmarks = face.getFaceLandmarks();
-            Log.i(TAG, "Landmarks: " + landmarks.size());
-            alignedFace = faceAligner.alignFace(bitmap, face.getFaceLandmarks());
-        }
-        return alignedFace;
-    }
-
-    private void loadUsers () {
-        faceRecognizer.AddUser(new User("Jeff", faceRecognizer.generateEmbedding(loadAlignedBitmap("jeff.jpg"))));
-        faceRecognizer.AddUser(new User("Ben", faceRecognizer.generateEmbedding(loadAlignedBitmap("ben.jpg"))));
-        faceRecognizer.AddUser(new User("Andrew", faceRecognizer.generateEmbedding(loadAlignedBitmap("andrew.jpg"))));
-        faceRecognizer.AddUser(new User("Ryan", faceRecognizer.generateEmbedding(loadAlignedBitmap("ryan.jpg"))));
     }
 
     @Override
@@ -185,7 +161,7 @@ public class CameraFragment extends Fragment implements FragmentCompat.OnRequest
 
     @Override
     public void onDestroy() {
-        faceDet.release();
+        faceDetector.release();
         faceRecognizer.close();
         super.onDestroy();
     }
@@ -245,43 +221,95 @@ public class CameraFragment extends Fragment implements FragmentCompat.OnRequest
         }
     }
 
-    private static long countDown = 10;
-
     private void classifyFrame() {
         if (faceRecognizer == null || getActivity() == null || cameraDevice == null) {
             showMessage("Uninitialized Classifier or invalid context.");
             return;
         }
 
+        if (null == userDb) {
+            userDb = new UserDb();
+            userDb.loadDbFromFile(getContext());
+            if (0 == userDb.getNumberOfUsers()) {
+                showMessage("Loading User Db");
+                loadUsersFromAssets();
+            }
+        }
+
         String textToShow = "";
 
-        // First determine if there is a face in the bitmap.
+        // Scale bitmap to improve performance.
         Bitmap bitmap = textureView.getBitmap();
         int width = bitmap.getWidth() / 2;
         int height = bitmap.getHeight() / 2;
         Bitmap scaledBitmap = Bitmap.createScaledBitmap(bitmap, width, height, true);
 
-        List<VisionDetRet> faces = faceDet.detect(scaledBitmap);
+        // First determine if there is a face in the bitmap.
+        List<VisionDetRet> faces = faceDetector.detect(scaledBitmap);
 
         int facesFound = faces.size();
-        textToShow = "Faces = " + facesFound;
         if (facesFound != 0) {
            VisionDetRet face = faces.get(0);
            ArrayList<Point> landmarks = face.getFaceLandmarks();
            Log.i(TAG, "landmarks: " + landmarks.size());
 
+           // Align face for input to recognition.
            Bitmap alignedFace = faceAligner.alignFace(scaledBitmap, landmarks);
 
            if (null != alignedFace) {
-               textToShow = faceRecognizer.recognizeFace(alignedFace);
+               Embedding embedding = faceRecognizer.generateEmbedding(alignedFace);
+               textToShow = userDb.recognizeFace(embedding);
            } else {
                textToShow = "Missing Landmarks";
            }
+        }
+        else {
+            textToShow = "No Faces.";
         }
 
         bitmap.recycle();
         showMessage(textToShow);
     }
+
+    private Bitmap loadBitmapFromAsset(String filePath) {
+        Bitmap bitmap = null;
+        try {
+            InputStream inputStream = getActivity().getAssets().open(filePath);
+            bitmap = BitmapFactory.decodeStream(inputStream);
+        } catch (IOException e) {
+        }
+
+        return bitmap;
+    }
+
+    private Bitmap loadAlignedBitmap(String filePath) {
+        Bitmap bitmap = loadBitmapFromAsset(filePath);
+        Bitmap alignedFace = null;
+        List<VisionDetRet> faces = faceDetector.detect(bitmap);
+
+        int facesFound = faces.size();
+
+        if (facesFound == 1) {
+            VisionDetRet face = faces.get(0);
+            ArrayList<Point> landmarks = face.getFaceLandmarks();
+            Log.i(TAG, "Landmarks: " + landmarks.size());
+            alignedFace = faceAligner.alignFace(bitmap, face.getFaceLandmarks());
+        }
+        return alignedFace;
+    }
+
+    private void loadUsersFromAssets () {
+        userDb.addUser(new User("Andrew Steinmetz", faceRecognizer.generateEmbedding(loadAlignedBitmap("andrew.jpg"))));
+        userDb.addUser(new User("Andy Sheehan", faceRecognizer.generateEmbedding(loadAlignedBitmap("andy.jpg"))));
+        userDb.addUser(new User("Ben Daschel", faceRecognizer.generateEmbedding(loadAlignedBitmap("ben.jpg"))));
+        userDb.addUser(new User("Jeff Watts", faceRecognizer.generateEmbedding(loadAlignedBitmap("jeff.jpg"))));
+        userDb.addUser(new User("Ryan Bruels", faceRecognizer.generateEmbedding(loadAlignedBitmap("ryan.jpg"))));
+        userDb.addUser(new User("Zahra Sedghinasab(1)", faceRecognizer.generateEmbedding(loadAlignedBitmap("zahra1.jpg"))));
+        userDb.addUser(new User("Zahra Sedghinasab(2)", faceRecognizer.generateEmbedding(loadAlignedBitmap("zahra2.jpg"))));
+        userDb.addUser(new User("Carl Tydingco", faceRecognizer.generateEmbedding(loadAlignedBitmap("carl.jpg"))));
+        userDb.saveDbToFile(getContext());
+    }
+
 
     private void SaveImage(Bitmap finalBitmap) {
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyMMddHHmmssSSS");

@@ -1,9 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
-<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
     tools:context="com.skiaddict.facerecognition.AddUserActivity">
 
-</android.support.constraint.ConstraintLayout>
+    <Button
+        android:id="@+id/buttonPickPhoto"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Pick Photo"
+        tools:layout_editor_absoluteX="60dp"
+        tools:layout_editor_absoluteY="49dp" />
+
+    <ImageView
+        android:id="@+id/imageFoundFace"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:srcCompat="@android:drawable/alert_dark_frame" />
+
+    <EditText
+        android:id="@+id/editUserName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ems="10"
+        android:inputType="textPersonName"
+        android:hint="Person Name"
+        android:text="Name" />
+
+    <Button
+        android:id="@+id/buttonAddUser"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Button" />
+
+    <Button
+        android:id="@+id/buttonSkipUser"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Button" />
+</LinearLayout>

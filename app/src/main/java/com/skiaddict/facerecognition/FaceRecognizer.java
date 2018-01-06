@@ -51,8 +51,6 @@ class FaceRecognizer {
     private float[] embedding;
     private float[] floatValues;
 
-    private ArrayList<User> userDb = new ArrayList<>();
-
     private int embeddingLength;
     private TensorFlowInferenceInterface inferenceInterface;
 
@@ -111,29 +109,7 @@ class FaceRecognizer {
         return new Embedding(embedding);
     }
 
-    public String recognizeFace (Bitmap bitmap) {
-        Embedding newEmbedding = generateEmbedding(bitmap);
-        String user = "";
-        double minDistance = 100;
-
-        for (User userIx : userDb) {
-            double distance = userIx.embedding.computeDistance(newEmbedding);
-
-            Log.i(TAG, userIx.name + "distance: " + distance);
-            if (distance < minDistance) {
-                minDistance = distance;
-                user = userIx.name;
-            }
-        }
-
-        return user + ": " + minDistance;
-    }
-
     public void close () {
         inferenceInterface.close();
-    }
-
-    public void AddUser(User user) {
-        userDb.add(user);
     }
 }

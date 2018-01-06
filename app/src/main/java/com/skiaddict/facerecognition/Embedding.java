@@ -5,9 +5,9 @@ package com.skiaddict.facerecognition;
  */
 
 public class Embedding {
-    private static int EMBEDDING_LENGTH = 128;
+    public static int EMBEDDING_LENGTH = 128;
 
-    private float[] values;
+    public float[] values;
 
     public Embedding(float[] values) {
         this.values = values.clone();
