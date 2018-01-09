@@ -25,16 +25,9 @@ import java.util.List;
  */
 
 public class FaceAligner {
-
-    private Activity activity;
     private static PointF projectedLandmark36 = new PointF(0.194157f, 0.16926692f);      // Outer left eye.
     private static PointF projectedLandmark45 = new PointF(0.78885913f, 0.15817115f);    // Outer right eye.
     private static PointF projectedLandmark33 = new PointF(0.49495089f, 0.51444137f);    // Nose
-
-    public FaceAligner (Activity activity) {
-        this.activity = activity;
-    }
-
 
     public Bitmap alignFace (Bitmap bitmapSource, List<Point> landmarks) {
         if (landmarks.size() < 68) {
@@ -75,34 +68,5 @@ public class FaceAligner {
         canvas.drawBitmap(bitmapSource, matrix, new Paint());
 
         return aligned;
-    }
-
-    private static void SaveImage(Activity activity, Bitmap finalBitmap) {
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyMMddHHmmssSSS");
-        String filename = dateFormat.format(Calendar.getInstance().getTime())+".jpg";
-        File file = new File(activity.getExternalFilesDir(null), filename);
-
-        if (file.exists ())
-            file.delete ();
-        try {
-            FileOutputStream out = new FileOutputStream(file);
-            finalBitmap.compress(Bitmap.CompressFormat.JPEG, 100, out);
-            out.flush();
-            out.close();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private static Bitmap loadBitmapFromAsset(AssetManager assetManager, String filePath) {
-        Bitmap bitmap = null;
-        try {
-            InputStream inputStream = assetManager.open(filePath);
-            bitmap = BitmapFactory.decodeStream(inputStream);
-        } catch (IOException e) {
-        }
-
-        return bitmap;
     }
 }

@@ -43,6 +43,10 @@ public class UserDb {
         userDb.add(user);
     }
 
+    public void removeAll () {
+        userDb.clear();
+    }
+
     public String recognizeFace (Embedding embedding) {
         String user = "";
         String result = "No Match";

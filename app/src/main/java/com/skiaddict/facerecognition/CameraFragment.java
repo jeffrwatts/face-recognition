@@ -89,12 +89,10 @@ public class CameraFragment extends Fragment implements FragmentCompat.OnRequest
     private CaptureRequest.Builder previewRequestBuilder;
     private CaptureRequest previewRequest;
 
-    private FaceDet faceDetector;
-    private FaceAligner faceAligner;
-    private FaceRecognizer faceRecognizer;
-
-
-    private UserDb userDb = null;
+    FaceDet faceDetector = null;
+    FaceAligner faceAligner = null;
+    FaceRecognizer faceRecognizer = null;
+    UserDb userDb = null;
 
     public static CameraFragment newInstance() {
         CameraFragment fragment = new CameraFragment();
@@ -120,20 +118,7 @@ public class CameraFragment extends Fragment implements FragmentCompat.OnRequest
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-        try {
-            faceDetector = new FaceDet(getFaceShapeModelPath());
-            faceAligner = new FaceAligner(getActivity());
-            faceRecognizer = new FaceRecognizer(getActivity());
-        } catch (IOException e) {
-            Log.e(TAG, "Failed to initialize an image classifier.");
-        }
         startBackgroundThread();
-    }
-
-    public String getFaceShapeModelPath() {
-        File externalFilesDir = getActivity().getExternalFilesDir(null);
-        String targetPath = externalFilesDir.getAbsolutePath() + File.separator + "shape_predictor_68_face_landmarks.dat";
-        return targetPath;
     }
 
     @Override
@@ -161,8 +146,6 @@ public class CameraFragment extends Fragment implements FragmentCompat.OnRequest
 
     @Override
     public void onDestroy() {
-        faceDetector.release();
-        faceRecognizer.close();
         super.onDestroy();
     }
 
@@ -222,18 +205,33 @@ public class CameraFragment extends Fragment implements FragmentCompat.OnRequest
     }
 
     private void classifyFrame() {
-        if (faceRecognizer == null || getActivity() == null || cameraDevice == null) {
-            showMessage("Uninitialized Classifier or invalid context.");
+        if (getActivity() == null || cameraDevice == null) {
+            showMessage("Initializing.");
             return;
         }
 
+        if (null == faceDetector) {
+            showMessage("Initializing Detector.");
+            Log.i(TAG, "Initializing Detector.");
+            faceDetector = ((FaceRecognizerApplication)(getActivity().getApplication())).getFaceDetector();
+        }
+
+        if (null == faceAligner) {
+            showMessage("Initializing Aligner");
+            Log.i(TAG, "Initializing Aligner.");
+            faceAligner = ((FaceRecognizerApplication)(getActivity().getApplication())).getFaceAligner();
+        }
+
+        if (null == faceRecognizer) {
+            showMessage("Initializing Recognizer");
+            Log.i(TAG, "Initializing Recognizer.");
+            faceRecognizer = ((FaceRecognizerApplication)(getActivity().getApplication())).getFaceRecognizer();
+        }
+
         if (null == userDb) {
-            userDb = new UserDb();
-            userDb.loadDbFromFile(getContext());
-            if (0 == userDb.getNumberOfUsers()) {
-                showMessage("Loading User Db");
-                loadUsersFromAssets();
-            }
+            showMessage("Initializing Db");
+            Log.i(TAG, "Initializing Db.");
+            userDb = ((FaceRecognizerApplication)(getActivity().getApplication())).getUserDb();
         }
 
         String textToShow = "";
@@ -270,46 +268,6 @@ public class CameraFragment extends Fragment implements FragmentCompat.OnRequest
         bitmap.recycle();
         showMessage(textToShow);
     }
-
-    private Bitmap loadBitmapFromAsset(String filePath) {
-        Bitmap bitmap = null;
-        try {
-            InputStream inputStream = getActivity().getAssets().open(filePath);
-            bitmap = BitmapFactory.decodeStream(inputStream);
-        } catch (IOException e) {
-        }
-
-        return bitmap;
-    }
-
-    private Bitmap loadAlignedBitmap(String filePath) {
-        Bitmap bitmap = loadBitmapFromAsset(filePath);
-        Bitmap alignedFace = null;
-        List<VisionDetRet> faces = faceDetector.detect(bitmap);
-
-        int facesFound = faces.size();
-
-        if (facesFound == 1) {
-            VisionDetRet face = faces.get(0);
-            ArrayList<Point> landmarks = face.getFaceLandmarks();
-            Log.i(TAG, "Landmarks: " + landmarks.size());
-            alignedFace = faceAligner.alignFace(bitmap, face.getFaceLandmarks());
-        }
-        return alignedFace;
-    }
-
-    private void loadUsersFromAssets () {
-        userDb.addUser(new User("Andrew Steinmetz", faceRecognizer.generateEmbedding(loadAlignedBitmap("andrew.jpg"))));
-        userDb.addUser(new User("Andy Sheehan", faceRecognizer.generateEmbedding(loadAlignedBitmap("andy.jpg"))));
-        userDb.addUser(new User("Ben Daschel", faceRecognizer.generateEmbedding(loadAlignedBitmap("ben.jpg"))));
-        userDb.addUser(new User("Jeff Watts", faceRecognizer.generateEmbedding(loadAlignedBitmap("jeff.jpg"))));
-        userDb.addUser(new User("Ryan Bruels", faceRecognizer.generateEmbedding(loadAlignedBitmap("ryan.jpg"))));
-        userDb.addUser(new User("Zahra Sedghinasab(1)", faceRecognizer.generateEmbedding(loadAlignedBitmap("zahra1.jpg"))));
-        userDb.addUser(new User("Zahra Sedghinasab(2)", faceRecognizer.generateEmbedding(loadAlignedBitmap("zahra2.jpg"))));
-        userDb.addUser(new User("Carl Tydingco", faceRecognizer.generateEmbedding(loadAlignedBitmap("carl.jpg"))));
-        userDb.saveDbToFile(getContext());
-    }
-
 
     private void SaveImage(Bitmap finalBitmap) {
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyMMddHHmmssSSS");

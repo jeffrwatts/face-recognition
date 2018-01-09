@@ -34,11 +34,17 @@
         android:id="@+id/buttonAddUser"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Button" />
+        android:text="Add User" />
 
     <Button
         android:id="@+id/buttonSkipUser"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Button" />
+        android:text="Skip User" />
+
+    <Button
+        android:id="@+id/loadDefaults"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Load Defaults" />
 </LinearLayout>

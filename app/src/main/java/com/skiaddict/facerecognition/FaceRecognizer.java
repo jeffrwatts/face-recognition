@@ -1,6 +1,7 @@
 package com.skiaddict.facerecognition;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -54,9 +55,8 @@ class FaceRecognizer {
     private int embeddingLength;
     private TensorFlowInferenceInterface inferenceInterface;
 
-    public FaceRecognizer(Activity activity) throws IOException {
-        AssetManager assetManager = activity.getAssets();
-
+    public FaceRecognizer(Context context) throws IOException {
+        AssetManager assetManager = context.getAssets();
 
         // Load model
         inferenceInterface = new TensorFlowInferenceInterface(assetManager, MODEL_FILE);
