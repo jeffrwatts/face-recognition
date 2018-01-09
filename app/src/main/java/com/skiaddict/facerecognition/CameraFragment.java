@@ -245,28 +245,47 @@ public class CameraFragment extends Fragment implements FragmentCompat.OnRequest
         // First determine if there is a face in the bitmap.
         List<VisionDetRet> faces = faceDetector.detect(scaledBitmap);
 
-        int facesFound = faces.size();
-        if (facesFound != 0) {
-           VisionDetRet face = faces.get(0);
-           ArrayList<Point> landmarks = face.getFaceLandmarks();
-           Log.i(TAG, "landmarks: " + landmarks.size());
+        int index = 0;
+        StringBuilder sb = new StringBuilder();
 
-           // Align face for input to recognition.
-           Bitmap alignedFace = faceAligner.alignFace(scaledBitmap, landmarks);
+        for (VisionDetRet faceIx : faces) {
+            ArrayList<Point> landmarks = faceIx.getFaceLandmarks();
 
-           if (null != alignedFace) {
-               Embedding embedding = faceRecognizer.generateEmbedding(alignedFace);
-               textToShow = userDb.recognizeFace(embedding);
-           } else {
-               textToShow = "Missing Landmarks";
-           }
+            // Align face for input to recognition.
+            Bitmap alignedFace = faceAligner.alignFace(scaledBitmap, landmarks);
+
+            if (null != alignedFace) {
+                Embedding embedding = faceRecognizer.generateEmbedding(alignedFace);
+                sb.append(userDb.recognizeFace(embedding));
+                sb.append("\n");
+            }
+
+            index++;
+
+            if (index >= 3) {
+                break;
+            }
         }
-        else {
-            textToShow = "No Faces.";
+
+        if (faces.size() == 0) {
+            textToShow = "No Faces";
+        } else {
+            textToShow = sb.toString();
         }
 
         bitmap.recycle();
         showMessage(textToShow);
+    }
+
+    private Bitmap loadBitmapFromAsset(String filePath) {
+        Bitmap bitmap = null;
+        try {
+            InputStream inputStream = getActivity().getAssets().open(filePath);
+            bitmap = BitmapFactory.decodeStream(inputStream);
+        } catch (IOException e) {
+        }
+
+        return bitmap;
     }
 
     private void SaveImage(Bitmap finalBitmap) {

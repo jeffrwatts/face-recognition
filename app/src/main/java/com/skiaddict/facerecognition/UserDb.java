@@ -31,7 +31,7 @@ public class UserDb {
     private static final String TAG = UserDb.class.getName();
     private static final String DB_FILENAME = "userDb.csv";
     private static final int USER_FIELD_LENGTH = 129;
-    private static final float MIN_THRESHOLD = 0.88f;
+    private static final float MIN_THRESHOLD = 0.86f;
 
     private ArrayList<User> userDb = new ArrayList<>();
 
@@ -62,13 +62,12 @@ public class UserDb {
             }
         }
 
-        if (minDistance < MIN_THRESHOLD)
-            result = user + "\n" + minDistance;
+        if (minDistance < MIN_THRESHOLD) {
+            result = user + " (" + Math.round(minDistance * 1000) / 1000.0f + ")";
+        }
 
         return result;
     }
-
-
 
     public void loadDbFromFile(Context context) {
         File file = new File(context.getExternalFilesDir(null), DB_FILENAME);
